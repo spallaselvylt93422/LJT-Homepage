@@ -43,7 +43,39 @@ jobs:
           grep -q 'C-Eval: A Multi-Level Multi-Discipline Chinese Evaluation Suite for Foundation Models' _site/index.html
           grep -q 'Composing Parameter-Efficient Modules with Arithmetic Operations' _site/index.html
           grep -q 'Composing Parameter-Efficient Modules with Arithmetic Operations' _site/publications/index.html
-          test ! -e _site/cv/index.html
-          test ! -e _site/talks/index.html
-          test ! -e _site/teaching/index.html
-          test ! -e _site/portfolio/index.html
+
+      - name: Check publication parity and canonical pages
+        run: |
+          ruby <<'RUBY'
+          require 'yaml'
+          require 'cgi'
+          require 'rexml/document'
+
+          publications = YAML.load_file('_data/publications.yml')
+          about_source = File.read('_pages/about.md')
+          normalize = lambda do |html|
+            CGI.unescapeHTML(html.gsub(/<[^>]*>/, '')).gsub(/\s+/, ' ').strip
+          end
+          about = normalize.call(File.read('_site/index.html'))
+          listing = normalize.call(File.read('_site/publications/index.html'))
+
+          abort 'The About section must include the complete publication list' unless about_source.scan(/^### /).size == publications.size
+          publications.each do |publication|
+            [about, listing].each do |page|
+              abort "Missing publication: #{publication['title']}" unless page.include?(publication['title'])
+              authors = publication['authors'].join(', ') + '.'
+              abort "Author mismatch: #{publication['title']}" unless page.include?(authors)
+            end
+            abort 'Missing publication year or venue' unless listing.include?("#{publication['venue']} #{publication['year']}")
+          end
+
+          sitemap = REXML::Document.new(File.read('_site/sitemap.xml'))
+          pages = sitemap.get_elements('urlset/url/loc').map(&:text).sort
+          expected = [
+            'https://spallaselvylt93422.github.io/LJT-Homepage/',
+            'https://spallaselvylt93422.github.io/LJT-Homepage/publications/'
+          ].sort
+          puts "Canonical pages: #{pages.join(', ')}"
+          abort "Unexpected canonical page list: #{pages.inspect}" unless pages == expected
+          puts "Verified #{publications.size} publications on both pages."
+          RUBY
