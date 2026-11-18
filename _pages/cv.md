@@ -18,7 +18,6 @@ Work experience
 ======
 * February 2025 - Present: Research Intern
   * MINIMAX
-  * Supervisor: Professor Junxian He
 
 * June 2024 - September 2024: Research Intern
   * Tencent WXG
